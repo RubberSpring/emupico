@@ -54,6 +54,9 @@ int main(int argc, char* args[]) {
 		
 			SDL_Event e;
 		
+			uint32_t* screenBuffer = new uint32_t[128 * 128];
+			SDL_Texture* screen = SDL_CreateTexture(gRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 128, 128);
+
 			while (!quit) {
 			
 				while (SDL_PollEvent( &e ) != 0) {
@@ -62,9 +65,29 @@ int main(int argc, char* args[]) {
 					}
 				}
 		
-                SDL_RenderClear( gRenderer );
+				SDL_SetRenderDrawColor(gRenderer, 0x00, 0x00, 0x00, 0x00);
+                SDL_RenderClear(gRenderer);
 
-                SDL_RenderPresent( gRenderer );
+				int nx = 128;
+  				int ny = 128;
+				
+				for (int x = 0; x < nx; x++) {
+				  for (int y = 0; y < ny; y++) {
+				    float r = float(x) / float(nx);
+				    float g = float(y) / float(ny);
+				    float b = 0.2;
+				    int ir = int(255.99 * r);
+				    int ig = int(255.99 * g);
+				    int ib = int(255.99 * b);
+
+				    screenBuffer[(y*nx) + x] = 0xFF000000 | (ir<<16) | (ib<<8) | ig;
+				  }
+				}
+
+				SDL_UpdateTexture(screen , NULL, screenBuffer, nx * sizeof(uint32_t));
+				SDL_RenderCopy(gRenderer, screen, NULL, NULL);
+
+                SDL_RenderPresent(gRenderer);
 		}
 	}
 
