@@ -1,6 +1,15 @@
 #include <cstdio>
 
-#include <SDL2/SDL.h>   
+#include <iostream>
+#include <fstream>
+#include <filesystem>
+
+#include <SDL2/SDL.h>
+
+#define SOL_ALL_SAFETIES_ON 1
+#include <sol/sol.hpp>
+
+namespace fs = std::filesystem;
 
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 540;
@@ -57,6 +66,112 @@ int main(int argc, char* args[]) {
 			uint32_t* screenBuffer = new uint32_t[128 * 128];
 			SDL_Texture* screen = SDL_CreateTexture(gRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 128, 128);
 
+			fs::path romPath("default.p8");
+
+			if (!fs::exists(romPath)) {
+				printf("ROM file %s is missing.\n", fs::absolute(romPath).string().c_str());
+				return 1;
+			}
+
+			std::string romData;
+			std::ifstream romFile(romPath, std::ios::binary);
+			std::stringstream romBuffer;
+
+			romBuffer << romFile.rdbuf();
+			romFile.close();
+			
+			std::string romLine;
+			std::string romCode;
+			std::string romGFX;
+			std::string romSFX;
+			std::string romMusic;
+			std::string romLabel;
+
+			bool isCode = false;
+			bool isGFX = false;
+			bool isSFX = false;
+			bool isMusic = false;
+			bool isLabel = false;
+
+			while (std::getline(romBuffer, romLine)) {
+				// Trim trailing whitespace (carriage returns, etc.)
+				while (!romLine.empty() && std::isspace(romLine.back())) {
+					romLine.pop_back();
+				}
+				
+				// Skip empty lines
+				if (romLine.empty()) {
+					continue;
+				}
+				
+				// Section check
+        		if (romLine == "__lua__") {
+					isCode = true;
+					isGFX = false;
+					isSFX = false;
+					isMusic = false;
+					continue;
+				}
+				if (romLine == "__gfx__") {
+					isCode = false;
+					isGFX = true;
+					isSFX = false;
+					isMusic = false;
+					continue;
+				}
+				if (romLine == "__label__") {
+					isCode = false;
+					isGFX = false;
+					isLabel = true;
+					isSFX = false;
+					isMusic = false;
+					continue;
+				}
+				if (romLine == "__sfx__") {
+					isCode = false;
+					isGFX = false;
+					isLabel = false;
+					isSFX = true;
+					isMusic = false;
+					continue;
+				}
+				if (romLine == "__music__") {
+					isCode = false;
+					isGFX = false;
+					isLabel = false;
+					isSFX = false;
+					isMusic = true;
+					continue;
+				}
+
+				// Place ROM data in apropriate places
+				if (isCode) {
+					romLine += "\n";
+					romCode.append(romLine);
+				}
+				if (isGFX) {
+					romLine += "\n";
+					romGFX.append(romLine);
+				}
+				if (isLabel) {
+					romLine += "\n";
+					romLabel.append(romLine);
+				}
+				if (isSFX) {
+					romLine += "\n";
+					romSFX.append(romLine);
+				}
+				if (isMusic) {
+					romLine += "\n";
+					romMusic.append(romLine);
+				}
+			}
+			
+			sol::state lua;
+			lua.open_libraries(sol::lib::base);
+
+			lua.script(romCode);
+
 			while (!quit) {
 			
 				while (SDL_PollEvent( &e ) != 0) {
@@ -67,7 +182,9 @@ int main(int argc, char* args[]) {
 		
 				SDL_SetRenderDrawColor(gRenderer, 0x00, 0x00, 0x00, 0x00);
                 SDL_RenderClear(gRenderer);
-
+				
+				lua["_draw"]();
+				
 				int nx = 128;
   				int ny = 128;
 				
@@ -80,6 +197,7 @@ int main(int argc, char* args[]) {
 				    int ig = int(255.99 * g);
 				    int ib = int(255.99 * b);
 
+					// Alpha, Red, Blue, Green
 				    screenBuffer[(y*nx) + x] = 0xFF000000 | (ir<<16) | (ib<<8) | ig;
 				  }
 				}
