@@ -9,6 +9,8 @@
 #define SOL_ALL_SAFETIES_ON 1
 #include <sol/sol.hpp>
 
+#include <CLI11/CLI11.hpp>
+
 namespace fs = std::filesystem;
 
 const int SCREEN_WIDTH = 640;
@@ -63,10 +65,19 @@ int main(int argc, char* args[]) {
 		
 			SDL_Event e;
 		
+			CLI::App app{"Another PICO-8 emulator"};
+    		args = app.ensure_utf8(args);
+		
+			std::string path = "default.p8";
+			app.add_option("file", path, "The file to be executed")
+				->required();
+
+			CLI11_PARSE(app, argc, args);			
+
 			uint32_t* screenBuffer = new uint32_t[128 * 128];
 			SDL_Texture* screen = SDL_CreateTexture(gRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 128, 128);
 
-			fs::path romPath("default.p8");
+			fs::path romPath(path);
 
 			if (!fs::exists(romPath)) {
 				printf("ROM file %s is missing.\n", fs::absolute(romPath).string().c_str());
