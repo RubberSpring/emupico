@@ -6,10 +6,10 @@
 
 #include <SDL2/SDL.h>
 
-#define SOL_ALL_SAFETIES_ON 1
-#include <sol/sol.hpp>
-
 #include <CLI11/CLI11.hpp>
+
+#define SOL_ALL_SAFETIES_ON 1
+#include <dummy.h>
 
 namespace fs = std::filesystem;
 
@@ -23,6 +23,33 @@ void close();
 SDL_Window* gWindow = NULL;
 
 SDL_Renderer* gRenderer = NULL;
+
+struct screenBox {
+	int width;
+	int height;
+
+	uint32_t* screenBuffer;
+
+	screenBox() {
+		width = 128;
+		height = 128;
+		screenBuffer = new uint32_t[width * height];
+	}
+
+	void cls(sol::optional<int> color) {
+		if (color.has_value()) {
+			printf("UNIMPLEMENTED: cls(%s)", color);
+			std::abort();
+		} else {
+			for (int x = 0; x < width; x++) {
+				  for (int y = 0; y < height; y++) {
+					// Alpha, Red, Blue, Green
+				    screenBuffer[(y*width) + x] = 0xFF000000 | (0<<16) | (0<<8) | 0	;
+				  }
+			}
+		}
+	}
+};
 
 bool init() {
 	bool success = true;
@@ -69,12 +96,17 @@ int main(int argc, char* args[]) {
     		args = app.ensure_utf8(args);
 		
 			std::string path = "default.p8";
-			app.add_option("file", path, "The file to be executed")
+			app.add_option("file", path, "The file to be executed.")
 				->required();
+
+			bool noMusic = false;
+			app.add_flag("-m,--no-music", noMusic, "Disable music, useful for \"music()\" related crashes.");
+
+			bool noSFX = false;
+			app.add_flag("-s,--no-sfx", noMusic, "Disable SFX, useful for \"sfx()\" related crashes.");
 
 			CLI11_PARSE(app, argc, args);			
 
-			uint32_t* screenBuffer = new uint32_t[128 * 128];
 			SDL_Texture* screen = SDL_CreateTexture(gRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 128, 128);
 
 			fs::path romPath(path);
@@ -181,6 +213,15 @@ int main(int argc, char* args[]) {
 			sol::state lua;
 			lua.open_libraries(sol::lib::base);
 
+			if (noMusic) {
+				lua.set_function("music", dummy_music);
+			}
+			if (noSFX) {
+				lua.set_function("sfx", dummy_sfx);
+			}
+
+			lua.set_function("cls", &screenBox::cls, screenBox());
+
 			lua.script(romCode);
 
 			auto init = lua["_init"];
@@ -202,6 +243,15 @@ int main(int argc, char* args[]) {
 				hasDraw = true;
 			}
 
+			screenBox screenBoxInst;
+
+			for (int x = 0; x < screenBoxInst.width; x++) {
+				  for (int y = 0; y < screenBoxInst.height; y++) {
+					// Alpha, Red, Blue, Green
+				    screenBoxInst.screenBuffer[(y*screenBoxInst.width) + x] = 0xFF000000 | (0<<16) | (0<<8) | 0	;
+				  }
+			}
+
 			while (!quit) {
 			
 				while (SDL_PollEvent( &e ) != 0) {
@@ -211,7 +261,6 @@ int main(int argc, char* args[]) {
 				}
 		
 				SDL_SetRenderDrawColor(gRenderer, 0x00, 0x00, 0x00, 0x00);
-                SDL_RenderClear(gRenderer);
 				
 				if (hasUpdate) {
 					update();
@@ -220,25 +269,8 @@ int main(int argc, char* args[]) {
 				if (hasDraw) {
 					draw();
 				}
-				
-				int nx = 128;
-  				int ny = 128;
-				
-				for (int x = 0; x < nx; x++) {
-				  for (int y = 0; y < ny; y++) {
-				    float r = float(x) / float(nx);
-				    float g = float(y) / float(ny);
-				    float b = 0.2;
-				    int ir = int(255.99 * r);
-				    int ig = int(255.99 * g);
-				    int ib = int(255.99 * b);
 
-					// Alpha, Red, Blue, Green
-				    screenBuffer[(y*nx) + x] = 0xFF000000 | (ir<<16) | (ib<<8) | ig;
-				  }
-				}
-
-				SDL_UpdateTexture(screen , NULL, screenBuffer, nx * sizeof(uint32_t));
+				SDL_UpdateTexture(screen , NULL, screenBoxInst.screenBuffer, screenBoxInst.width * sizeof(uint32_t));
 				SDL_RenderCopy(gRenderer, screen, NULL, NULL);
 
                 SDL_RenderPresent(gRenderer);
