@@ -172,6 +172,25 @@ int main(int argc, char* args[]) {
 
 			lua.script(romCode);
 
+			auto init = lua["_init"];
+			auto update = lua["_update"];
+			auto draw = lua["_draw"];
+
+			bool hasUpdate = false;
+			bool hasDraw = false;
+
+			if (init.valid()) {
+				init();
+			}
+
+			if (update.valid()) {
+				hasUpdate = true;
+			}
+
+			if (draw.valid()) {
+				hasDraw = true;
+			}
+
 			while (!quit) {
 			
 				while (SDL_PollEvent( &e ) != 0) {
@@ -183,7 +202,13 @@ int main(int argc, char* args[]) {
 				SDL_SetRenderDrawColor(gRenderer, 0x00, 0x00, 0x00, 0x00);
                 SDL_RenderClear(gRenderer);
 				
-				lua["_draw"]();
+				if (hasUpdate) {
+					update();
+				}
+
+				if (hasDraw) {
+					draw();
+				}
 				
 				int nx = 128;
   				int ny = 128;
