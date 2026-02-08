@@ -1,12 +1,14 @@
 use std::fs::File;
 use std::time::Duration;
 use std::io::prelude::*;
+use std::fmt::Write;
 
 use camino::Utf8PathBuf;
 
 use clap::Parser;
 
-use emupico::VM;
+use emupico::vm::VM;
+use emupico::rom::{RomSectionType, RomSection};
 
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
@@ -21,21 +23,41 @@ struct Args {
 	file: Utf8PathBuf,
 }
 
-fn main(){
+fn main() -> Result<(), Box<dyn std::error::Error>>{
 	let args = Args::parse(); 
 
-	let mut rom_file = match File::open(&args.file) {
-		Err(why) => {
-			eprintln!("couldn't open {}: {}", args.file, why);
-			return;
-		},
-		Ok(file) => file
-	};
+	let mut rom_file = File::open(&args.file)?;
 
 	let mut rom_data = String::new();
-	match rom_file.read_to_string(&mut rom_data) {
-		Err(why) => panic!("failed to read {}: {}", args.file, why),
-		Ok(_) => {}
+	rom_file.read_to_string(&mut rom_data)?;
+
+	let mut current_section = RomSectionType::Header;
+
+	let mut lua_section = RomSection::new(RomSectionType::Lua);
+	let mut gfx_section = RomSection::new(RomSectionType::Gfx);
+	let mut label_section = RomSection::new(RomSectionType::Label);
+	let mut sfx_section = RomSection::new(RomSectionType::Sfx);
+	let mut music_section = RomSection::new(RomSectionType::Music);
+
+	for line in rom_data.lines() {
+		match line {
+			"__lua__" => current_section = RomSectionType::Lua,
+			"__gfx__" => current_section = RomSectionType::Gfx,
+			"__label__" => current_section = RomSectionType::Label,
+			"__sfx__" => current_section = RomSectionType::Sfx,
+			"__music__" => current_section = RomSectionType::Music,
+
+			_ => {
+				match current_section {
+					RomSectionType::Header => {},
+					RomSectionType::Lua => writeln!(lua_section.data, "{}", line)?,
+					RomSectionType::Gfx => writeln!(gfx_section.data, "{}", line)?,
+					RomSectionType::Label => writeln!(label_section.data, "{}", line)?,
+					RomSectionType::Sfx => writeln!(sfx_section.data, "{}", line)?,
+					RomSectionType::Music => writeln!(music_section.data, "{}", line)?
+				}
+			}
+		}
 	}
 
 	let sdl_context = sdl2::init().unwrap();
@@ -62,30 +84,24 @@ fn main(){
 	canvas.clear();
 	canvas.present();
 	let mut event_pump = sdl_context.event_pump().unwrap();
-	'running: loop {
+	'running: loop{
 		canvas.set_draw_color(Color::RGB(0, 0, 0));
 		canvas.clear();
 		for event in event_pump.poll_iter() {
 			match event {
 				Event::Quit {..} |
 				Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-					break 'running
+					break 'running Ok(())
 				},
 				_ => {}
 			}
 		}
 		
-		vm.draw_pixel(0, 0, 0x45b6f7);
+		vm.draw_pixel(0, 0, 0x45b6f7ff);
 
-		match screen_texture.update(None, vm.screen_raw(), 128*4 as usize) {
-			Err(why) => panic!("failed to update screen texture: {}", why),
-			Ok(()) => {}
-		}
+		screen_texture.update(None, vm.screen_raw(), 128*4 as usize)?;
 
-		match canvas.copy(&screen_texture, None, None) {
-			Err(why) => panic!("failed to copy screen texture: {}", why),
-			Ok(()) => {}
-		}
+		canvas.copy(&screen_texture, None, None)?;
 
 		canvas.present();
 		::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
