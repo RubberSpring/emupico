@@ -21,4 +21,8 @@ impl VM {
 	pub fn draw_pixel(&mut self, x: u32, y: u32, color: u32) {
         self.screen[(y*128 + x) as usize] = color;
     }
+
+	pub fn clear_screen(&mut self) {
+		self.screen = vec![0; (128*128) as usize]
+	}
 }

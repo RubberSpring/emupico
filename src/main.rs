@@ -9,6 +9,7 @@ use clap::Parser;
 
 use emupico::vm::VM;
 use emupico::rom::{RomSectionType, RomSection};
+use emupico::funcs::dummy;
 
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
@@ -16,11 +17,15 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::TextureAccess;
 
+use mlua::{Function, Lua};
 
 #[derive(Parser)]
 #[command(name = "emupico")]
 struct Args {
 	file: Utf8PathBuf,
+
+	#[arg(short = 'm', long = "no-music", long_help = "Disables music, useful for music related crashes.")]
+	no_music: bool,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
@@ -70,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 
 	let mut canvas = window.into_canvas().build().unwrap();
 
-	let mut vm = VM::new();
+	let vm = VM::new();
 
 	let creator = canvas.texture_creator();
 
@@ -79,6 +84,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 			Ok(texture) => texture,
 			Err(why) => panic!("failed to create screen texture: {}", why)
 	};
+
+	let lua = Lua::new();
+	let globals = lua.globals();
+
+	if args.no_music {
+		let dummy_music = lua.create_function(dummy::dummy_music)?;
+		globals.set("music", dummy_music)?;
+	}
+
+	lua.load(lua_section.data).set_name("cart").exec()?;
+
+	let mut has_update = false;
+	let mut has_draw = false;
+
+	if globals.contains_key("_init")? {
+		let init: Function = globals.get("_init")?;
+		init.call::<()>(())?;
+	}
+
+	if globals.contains_key("_update")? {
+		has_update = true;
+	}
+
+	if globals.contains_key("_draw")? {
+		has_draw = true;
+	}
 
 	canvas.set_draw_color(Color::RGB(0, 255, 255));
 	canvas.clear();
@@ -97,7 +128,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 			}
 		}
 		
-		vm.draw_pixel(0, 0, 0x45b6f7ff);
+		if has_update {
+			let update: Function = globals.get("_update")?;
+			update.call::<()>(())?;
+		}
+
+		if has_draw {
+			let draw: Function = globals.get("_draw")?;
+			draw.call::<()>(())?;
+		}
 
 		screen_texture.update(None, vm.screen_raw(), 128*4 as usize)?;
 
