@@ -9,6 +9,7 @@ use clap::Parser;
 
 use emupico::vm::VM;
 use emupico::rom::{RomSectionType, RomSection};
+use emupico::funcs;
 use emupico::funcs::dummy;
 
 use sdl2::pixels::Color;
@@ -75,8 +76,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 
 	let mut canvas = window.into_canvas().build().unwrap();
 
-	let vm = VM::new();
-
 	let creator = canvas.texture_creator();
 
 	let mut screen_texture =  match creator.create_texture(
@@ -88,10 +87,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 	let lua = Lua::new();
 	let globals = lua.globals();
 
+	let vm = VM::new();
+	globals.set("EMUPICO_VM", vm)?;
+
 	if args.no_music {
 		let dummy_music = lua.create_function(dummy::dummy_music)?;
 		globals.set("music", dummy_music)?;
 	}
+
+	let cls = lua.create_function(funcs::cls)?;
+	globals.set("cls", cls)?;
+
+	let time = lua.create_function(funcs::time)?;
+	globals.set("time", time.clone())?;
+	globals.set("t", time)?;
 
 	lua.load(lua_section.data).set_name("cart").exec()?;
 
@@ -113,6 +122,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 
 	canvas.set_draw_color(Color::RGB(0, 255, 255));
 	canvas.clear();
+	{
+		let mut tmp_vm = globals.get::<VM>("EMUPICO_VM")?;
+		tmp_vm.draw_pixel(0, 0, 0x00ff22ff);
+		globals.set("EMUPICO_VM", tmp_vm)?;
+	}
 	canvas.present();
 	let mut event_pump = sdl_context.event_pump().unwrap();
 	'running: loop{
@@ -133,12 +147,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 			update.call::<()>(())?;
 		}
 
+		{
+			let mut tmp_vm = globals.get::<VM>("EMUPICO_VM")?;
+			tmp_vm.time += 0.0167;
+			globals.set("EMUPICO_VM", tmp_vm)?;
+		}
+
 		if has_draw {
 			let draw: Function = globals.get("_draw")?;
 			draw.call::<()>(())?;
 		}
 
-		screen_texture.update(None, vm.screen_raw(), 128*4 as usize)?;
+		screen_texture.update(None, globals.get::<VM>("EMUPICO_VM")?.screen_raw(), 128*4 as usize)?;
 
 		canvas.copy(&screen_texture, None, None)?;
 

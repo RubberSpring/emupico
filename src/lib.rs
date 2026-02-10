@@ -1,3 +1,3 @@
 pub mod vm;
 pub mod rom;
-pub mod dummy;
+pub mod funcs;
