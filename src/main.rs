@@ -11,6 +11,7 @@ use emupico::vm::VM;
 use emupico::rom::{RomSectionType, RomSection};
 use emupico::funcs;
 use emupico::funcs::dummy;
+use emupico::palette;
 
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
@@ -90,6 +91,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 	let vm = VM::new();
 	globals.set("EMUPICO_VM", vm)?;
 
+	let palette = palette::ColorList(palette::Color::VARIANTS);
+
 	if args.no_music {
 		let dummy_music = lua.create_function(dummy::dummy_music)?;
 		globals.set("music", dummy_music)?;
@@ -101,6 +104,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 	let time = lua.create_function(funcs::time)?;
 	globals.set("time", time.clone())?;
 	globals.set("t", time)?;
+
+	let cos = lua.create_function(funcs::cos)?;
+	globals.set("cos", cos)?;
 
 	lua.load(lua_section.data).set_name("cart").exec()?;
 
