@@ -44,11 +44,8 @@ impl VM {
 		let flip_x = flip_x.unwrap_or(false);
 		let flip_y = flip_y.unwrap_or(false);
 		
-		// Iterate through the sprite grid
 		for dy in 0..h {
 			for dx in 0..w {
-				// Calculate which sprite to draw
-				// Sprites are arranged in a 16-sprite-wide grid
 				let sprite_base = sprite_number as usize;
 				let sprite_idx = sprite_base + dy * 16 + dx;
 				
@@ -56,7 +53,6 @@ impl VM {
 					continue;
 				}
 				
-				// Extract sprite data before taking mutable borrow
 				let sprite_pixels = if let Some(sprite) = self.gfx_data.get_sprite(sprite_idx) {
 					Some(sprite.pixels)
 				} else {
@@ -67,10 +63,8 @@ impl VM {
 					let screen_x = x + (dx as i32) * 8;
 					let screen_y = y + (dy as i32) * 8;
 					
-					// Blit each pixel of the sprite
 					for py in 0..8 {
 						for px in 0..8 {
-							// Handle flipping
 							let src_x = if flip_x { 7 - px } else { px };
 							let src_y = if flip_y { 7 - py } else { py };
 							
@@ -78,7 +72,6 @@ impl VM {
 							let dest_x = screen_x + px as i32;
 							let dest_y = screen_y + py as i32;
 							
-							// Bounds check
 							if dest_x >= 0 && dest_x < 128 && dest_y >= 0 && dest_y < 128 {
 								self.draw_pixel(dest_x as u32, dest_y as u32, color);
 							}
@@ -88,35 +81,24 @@ impl VM {
 			}
 		}
 	}
+
+	pub fn pal(&mut self, color1: i8, color2: i8, palette: Option<i8>) {
+		match palette {
+					Some(0) | None => self.palette.0[color1 as usize] = self.palette.0[color2 as usize],
+					Some(change) => panic!("Palette change type {} is not implemented", change)
+		}
+	}
 }
 
 impl FromLua for VM {
-		fn from_lua(value: Value, _: &Lua) -> Result<Self> {
-			match value {
-				Value::UserData(ud) => Ok(ud.borrow::<Self>()?.clone()),
-				_ => unreachable!(),
-			}
+	fn from_lua(value: Value, _: &Lua) -> Result<Self> {
+		match value {
+			Value::UserData(ud) => Ok(ud.borrow::<Self>()?.clone()),
+			_ => unreachable!(),
 		}
 	}
+}
 
-	impl UserData for VM {
-		fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {
-			methods.add_method_mut("cls", |_, vm, ()| {
-				vm.clear_screen();
-				Ok(())
-			});
-			methods.add_method_mut("pal", |_, vm, (color1, color2, palette):(i8, i8, Option<i8>)| {
-				match palette {
-					Some(0) | None => vm.palette.0[color1 as usize] = vm.palette.0[color2 as usize],
-					Some(change) => panic!("Palette change type {} is not implemented", change)
-				}
-				Ok(())
-			});
-		methods.add_method_mut("spr", |_, vm, (sprite_number, x, y, w, h, flip_x, flip_y):(
-			i32, i32, i32, Option<i32>, Option<i32>, Option<bool>, Option<bool>
-		)| {
-			vm.spr(sprite_number, x, y, w, h, flip_x, flip_y);
-			Ok(())
-		});
-		}
-	}
+impl UserData for VM {
+	fn add_methods<M: UserDataMethods<Self>>(methods: &mut M) {}
+}
