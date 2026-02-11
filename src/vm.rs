@@ -1,16 +1,20 @@
 use mlua::{FromLua, Lua, Result, UserData, UserDataMethods, Value};
 
+use crate::palette::{ColorList, Color};
+
 #[derive(Clone)]
 pub struct VM {
 	pub screen: Vec<u32>,
-	pub time: f32
+	pub time: f32,
+	pub palette: ColorList
 }
 
 impl VM {
 	pub fn new() -> VM {
 		VM {
 			screen: vec![0; (128*128) as usize],
-			time: 0.0
+			time: 0.0,
+			palette: ColorList(Color::VARIANTS)
 		}
 	}
 
@@ -47,8 +51,12 @@ impl FromLua for VM {
 				vm.clear_screen();
 				Ok(())
 			});
-			methods.add_method("time", |_, vm, ()| {
-				Ok(vm.time)
+			methods.add_method_mut("pal", |_, vm, (color1, color2, palette):(i8, i8, Option<i8>)| {
+				match palette {
+					Some(0) | None => vm.palette.0[color1 as usize] = vm.palette.0[color2 as usize],
+					Some(change) => panic!("Palette change type {} is not implemented", change)
+				}
+				Ok(())
 			});
 		}
 	}

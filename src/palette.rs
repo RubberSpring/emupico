@@ -1,3 +1,4 @@
+#[derive(Clone, Copy)]
 pub enum Color {
 	Black,
 	DarkBlue,
@@ -71,4 +72,5 @@ pub fn color_to_hex(color: Color) -> u32{
 	}
 }
 
+#[derive(Clone, Copy)]
 pub struct ColorList(pub [Color; 16]);

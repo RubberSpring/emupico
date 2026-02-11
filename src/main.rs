@@ -11,7 +11,6 @@ use emupico::vm::VM;
 use emupico::rom::{RomSectionType, RomSection};
 use emupico::funcs;
 use emupico::funcs::dummy;
-use emupico::palette;
 
 use sdl2::pixels::Color;
 use sdl2::pixels::PixelFormatEnum;
@@ -28,6 +27,9 @@ struct Args {
 
 	#[arg(short = 'm', long = "no-music", long_help = "Disables music, useful for music related crashes.")]
 	no_music: bool,
+
+	#[arg(short = 'u', long = "unstable", long_help = "Enables unstable API implementations.")]
+	unstable: bool
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
@@ -91,8 +93,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 	let vm = VM::new();
 	globals.set("EMUPICO_VM", vm)?;
 
-	let palette = palette::ColorList(palette::Color::VARIANTS);
-
 	if args.no_music {
 		let dummy_music = lua.create_function(dummy::dummy_music)?;
 		globals.set("music", dummy_music)?;
@@ -107,6 +107,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 
 	let cos = lua.create_function(funcs::cos)?;
 	globals.set("cos", cos)?;
+
+	if args.unstable {
+		let pal = lua.create_function(funcs::pal)?;
+		globals.set("pal", pal)?;
+	} else {
+		let pal = lua.create_function(dummy::dummy_pal)?;
+		globals.set("pal", pal)?;
+	}
 
 	lua.load(lua_section.data).set_name("cart").exec()?;
 
