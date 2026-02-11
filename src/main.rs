@@ -111,13 +111,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 	let spr = lua.create_function(funcs::spr)?;
 	globals.set("spr", spr)?;
 
-	if args.unstable {
-		let pal = lua.create_function(funcs::pal)?;
-		globals.set("pal", pal)?;
-	} else {
-		let pal = lua.create_function(dummy::dummy_pal)?;
-		globals.set("pal", pal)?;
-	}
+	let pal = lua.create_function(funcs::pal)?;
+	globals.set("pal", pal)?;
 
 	lua.load(lua_section.data).set_name("cart").exec()?;
 
@@ -166,7 +161,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 
 		{
 			let mut tmp_vm = globals.get::<VM>("EMUPICO_VM")?;
-			tmp_vm.time += 0.0167;
+			tmp_vm.time += 0.0333;
 			globals.set("EMUPICO_VM", tmp_vm)?;
 		}
 

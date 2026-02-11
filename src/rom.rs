@@ -1,4 +1,4 @@
-use crate::palette::{code_to_color, color_to_hex};
+// sprite pixels are stored as color indices (0-15)
 
 pub enum RomSectionType {
 	Header,
@@ -25,13 +25,13 @@ impl RomSection {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Sprite {
-	pub pixels: [[u32; 8]; 8]
+	pub pixels: [[u8; 8]; 8]
 }
 
 impl Sprite {
 	pub fn new() -> Self {
 		Sprite {
-			pixels: [[0x000000ff; 8]; 8]
+			pixels: [[0u8; 8]; 8]
 		}
 	}
 }
@@ -74,10 +74,8 @@ impl GfxSection {
 
 				let row_data = &padded_line[char_start..char_end];
 				for (pixel_x, ch) in row_data.chars().enumerate() {
-					if ch.to_digit(16).is_some() {
-						let color = code_to_color(ch);
-						let rgba = color_to_hex(color);
-						sprites[sprite_idx].pixels[sprite_row][pixel_x] = rgba;
+					if let Some(d) = ch.to_digit(16) {
+						sprites[sprite_idx].pixels[sprite_row][pixel_x] = d as u8;
 					}
 				}
 			}

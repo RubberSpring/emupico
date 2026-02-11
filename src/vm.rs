@@ -1,6 +1,6 @@
 use mlua::{FromLua, Lua, Result, UserData, UserDataMethods, Value};
 
-use crate::palette::{ColorList, Color};
+use crate::palette::{ColorList, Color, color_to_hex};
 use crate::rom::GfxSection;
 
 #[derive(Clone)]
@@ -67,10 +67,10 @@ impl VM {
 						for px in 0..8 {
 							let src_x = if flip_x { 7 - px } else { px };
 							let src_y = if flip_y { 7 - py } else { py };
-							
-							let color = pixels[src_y][src_x];
 							let dest_x = screen_x + px as i32;
 							let dest_y = screen_y + py as i32;
+							let code = pixels[src_y][src_x] as usize;
+							let color = color_to_hex(self.palette.0[code]);
 							
 							if dest_x >= 0 && dest_x < 128 && dest_y >= 0 && dest_y < 128 {
 								self.draw_pixel(dest_x as u32, dest_y as u32, color);

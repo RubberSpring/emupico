@@ -39,7 +39,7 @@ impl Color {
 	];
 }
 
-pub fn code_to_color(code: char) -> Color {
+pub fn sprite_to_color(code: char) -> Color {
 	match code {
 		'0' => Color::Black,
 		'1' => Color::DarkBlue,
@@ -59,6 +59,18 @@ pub fn code_to_color(code: char) -> Color {
 		'f' => Color::Peach,
 		_ => panic!("invalid sprite pixel code: {}", code)
 	}
+}
+
+pub fn code_to_color(code: i8) -> Color {
+	if let 0..=15 = code {
+		unsafe {std::mem::transmute::<i8, Color>(code)}
+	} else {
+		panic!("color code {} is invalid", code)
+	}
+}
+
+pub fn color_to_code(color: Color) -> i8 {
+	color as i8
 }
 
 pub fn color_to_hex(color: Color) -> u32{
