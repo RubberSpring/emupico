@@ -39,15 +39,25 @@ impl Color {
 	];
 }
 
-pub fn color_to_code(color: Color) -> i8 {
-	color as i8
-}
-
-pub fn code_to_color(code: i8) -> Color {
-	if let 0..=15 = code {
-		unsafe {std::mem::transmute::<i8, Color>(code)}
-	} else {
-		panic!("color code {} is invalid", code)
+pub fn code_to_color(code: char) -> Color {
+	match code {
+		'0' => Color::Black,
+		'1' => Color::DarkBlue,
+		'2' => Color::DarkPurple,
+		'3' => Color::DarkGreen,
+		'4' => Color::Brown,
+		'5' => Color::DarkGray,
+		'6' => Color::LightGray,
+		'7' => Color::White,
+		'8' => Color::Red,
+		'9' => Color::Orange,
+		'a' => Color::Yellow,
+		'b' => Color::Green,
+		'c' => Color::Blue,
+		'd' => Color::Indigo,
+		'e' => Color::Pink,
+		'f' => Color::Peach,
+		_ => panic!("invalid sprite pixel code: {}", code)
 	}
 }
 

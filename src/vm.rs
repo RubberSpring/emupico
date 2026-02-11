@@ -1,20 +1,23 @@
 use mlua::{FromLua, Lua, Result, UserData, UserDataMethods, Value};
 
 use crate::palette::{ColorList, Color};
+use crate::rom::GfxSection;
 
 #[derive(Clone)]
 pub struct VM {
 	pub screen: Vec<u32>,
 	pub time: f32,
-	pub palette: ColorList
+	pub palette: ColorList,
+	pub gfx_data: GfxSection
 }
 
 impl VM {
-	pub fn new() -> VM {
+	pub fn new(gfx_data: &str) -> VM {
 		VM {
 			screen: vec![0; (128*128) as usize],
 			time: 0.0,
-			palette: ColorList(Color::VARIANTS)
+			palette: ColorList(Color::VARIANTS),
+			gfx_data: GfxSection::parse(gfx_data)
 		}
 	}
 
@@ -33,6 +36,57 @@ impl VM {
 
 	pub fn clear_screen(&mut self) {
 		self.screen = vec![0; (128*128) as usize]
+	}
+
+	pub fn spr(&mut self, sprite_number: i32, x: i32, y: i32, w: Option<i32>, h: Option<i32>, flip_x: Option<bool>, flip_y: Option<bool>) {
+		let w = w.unwrap_or(1) as usize;
+		let h = h.unwrap_or(1) as usize;
+		let flip_x = flip_x.unwrap_or(false);
+		let flip_y = flip_y.unwrap_or(false);
+		
+		// Iterate through the sprite grid
+		for dy in 0..h {
+			for dx in 0..w {
+				// Calculate which sprite to draw
+				// Sprites are arranged in a 16-sprite-wide grid
+				let sprite_base = sprite_number as usize;
+				let sprite_idx = sprite_base + dy * 16 + dx;
+				
+				if sprite_idx >= 64 {
+					continue;
+				}
+				
+				// Extract sprite data before taking mutable borrow
+				let sprite_pixels = if let Some(sprite) = self.gfx_data.get_sprite(sprite_idx) {
+					Some(sprite.pixels)
+				} else {
+					None
+				};
+				
+				if let Some(pixels) = sprite_pixels {
+					let screen_x = x + (dx as i32) * 8;
+					let screen_y = y + (dy as i32) * 8;
+					
+					// Blit each pixel of the sprite
+					for py in 0..8 {
+						for px in 0..8 {
+							// Handle flipping
+							let src_x = if flip_x { 7 - px } else { px };
+							let src_y = if flip_y { 7 - py } else { py };
+							
+							let color = pixels[src_y][src_x];
+							let dest_x = screen_x + px as i32;
+							let dest_y = screen_y + py as i32;
+							
+							// Bounds check
+							if dest_x >= 0 && dest_x < 128 && dest_y >= 0 && dest_y < 128 {
+								self.draw_pixel(dest_x as u32, dest_y as u32, color);
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -58,5 +112,11 @@ impl FromLua for VM {
 				}
 				Ok(())
 			});
+		methods.add_method_mut("spr", |_, vm, (sprite_number, x, y, w, h, flip_x, flip_y):(
+			i32, i32, i32, Option<i32>, Option<i32>, Option<bool>, Option<bool>
+		)| {
+			vm.spr(sprite_number, x, y, w, h, flip_x, flip_y);
+			Ok(())
+		});
 		}
 	}

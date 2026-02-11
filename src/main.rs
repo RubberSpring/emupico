@@ -8,7 +8,7 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 
 use emupico::vm::VM;
-use emupico::rom::{RomSectionType, RomSection};
+use emupico::rom::{RomSectionType, RomSection, GfxSection};
 use emupico::funcs;
 use emupico::funcs::dummy;
 
@@ -90,7 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 	let lua = Lua::new();
 	let globals = lua.globals();
 
-	let vm = VM::new();
+	let vm = VM::new(&gfx_section.data);
 	globals.set("EMUPICO_VM", vm)?;
 
 	if args.no_music {
@@ -107,6 +107,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>>{
 
 	let cos = lua.create_function(funcs::cos)?;
 	globals.set("cos", cos)?;
+
+	let spr = lua.create_function(funcs::spr)?;
+	globals.set("spr", spr)?;
 
 	if args.unstable {
 		let pal = lua.create_function(funcs::pal)?;

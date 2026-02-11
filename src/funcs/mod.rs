@@ -25,3 +25,11 @@ pub fn pal(lua: &Lua, (color1, color2, palette):(i8, i8, Option<i8>)) -> Result<
 	globals.raw_remove("EMUPICO_PAL")?;
 	Ok(())
 }
+
+pub fn spr(lua: &Lua, (sprite_number, x, y, w, h, flip_x, flip_y):(i32, i32, i32, Option<i32>, Option<i32>, Option<bool>, Option<bool>)) -> Result<()>{
+	let globals = lua.globals();
+	let mut vm = globals.get::<VM>("EMUPICO_VM")?;
+	vm.spr(sprite_number, x, y, w, h, flip_x, flip_y);
+	globals.set("EMUPICO_VM", vm)?;
+	Ok(())
+}
